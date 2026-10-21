@@ -52,6 +52,7 @@ public class DorisOptions {
     private final int fileSize;
     private final int recordNum;
     private final long flushTime;
+    private final boolean shareGroupEnabled;
     private final boolean enableCustomJMX;
     private final int taskId;
     private final boolean enableDelete;
@@ -80,6 +81,9 @@ public class DorisOptions {
     private final Map<String, String> sessionVariables;
 
     public DorisOptions(Map<String, String> config) {
+        this.shareGroupEnabled =
+                Boolean.parseBoolean(
+                        config.getOrDefault(DorisSinkConnectorConfig.SHARE_GROUP_ENABLED, "false"));
         this.name = config.get(DorisSinkConnectorConfig.NAME);
         this.urls = config.get(DorisSinkConnectorConfig.DORIS_URLS);
         this.queryPort = Integer.parseInt(config.get(DorisSinkConnectorConfig.DORIS_QUERY_PORT));
@@ -154,6 +158,17 @@ public class DorisOptions {
                 LoadModel.TVF.equals(loadModel)
                         ? false
                         : ConfigCheckUtils.validateGroupCommitMode(this);
+        if (shareGroupEnabled) {
+            if (deliveryGuarantee != DeliveryGuarantee.AT_LEAST_ONCE
+                    || loadModel != LoadModel.STREAM_LOAD
+                    || enableCombineFlush
+                    || enableGroupCommit) {
+                throw new IllegalArgumentException(
+                        "Share mode requires at_least_once stream_load without combine/group commit");
+            }
+            this.enable2PC = false;
+            this.force2PC = false;
+        }
         this.maxRetries =
                 Integer.parseInt(
                         config.getOrDefault(
@@ -347,6 +362,10 @@ public class DorisOptions {
 
     public void setEnable2PC(boolean enable2PC) {
         this.enable2PC = enable2PC;
+    }
+
+    public boolean isShareGroupEnabled() {
+        return shareGroupEnabled;
     }
 
     public boolean enableGroupCommit() {

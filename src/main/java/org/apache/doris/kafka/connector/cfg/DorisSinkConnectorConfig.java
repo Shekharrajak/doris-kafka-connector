@@ -90,6 +90,7 @@ public class DorisSinkConnectorConfig {
     public static final String LOAD_MODEL = "load.model";
     public static final String LOAD_MODEL_DEFAULT = LoadModel.STREAM_LOAD.name();
     public static final String AUTO_REDIRECT = "auto.redirect";
+    public static final String SHARE_GROUP_ENABLED = "doris.share.group.enabled";
     public static final String DELIVERY_GUARANTEE = "delivery.guarantee";
     public static final String DELIVERY_GUARANTEE_DEFAULT = DeliveryGuarantee.AT_LEAST_ONCE.name();
     public static final String ENABLE_COMBINE_FLUSH = "enable.combine.flush";
@@ -346,6 +347,12 @@ public class DorisSinkConnectorConfig {
                         5,
                         ConfigDef.Width.NONE,
                         ENABLE_COMBINE_FLUSH)
+                .define(
+                        SHARE_GROUP_ENABLED,
+                        Type.BOOLEAN,
+                        false,
+                        Importance.HIGH,
+                        "Enable synchronous at-least-once writes for a share-aware worker.")
                 .define(
                         DELIVERY_GUARANTEE,
                         Type.STRING,

@@ -160,7 +160,7 @@ public class DorisDefaultSinkService implements DorisSinkService {
         // check all sink writer to see if they need to be flushed
         for (DorisWriter writer : writer.values()) {
             // Time based flushing
-            if (writer.shouldFlush()) {
+            if (dorisOptions.isShareGroupEnabled() || writer.shouldFlush()) {
                 writer.flushBuffer();
             }
         }

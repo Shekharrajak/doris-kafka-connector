@@ -55,4 +55,33 @@ public class DorisStreamLoadTlsTest {
         streamLoad.close();
         Assert.assertTrue(httpClient.isClosed());
     }
+
+    @Test(expected = org.apache.doris.kafka.connector.exception.StreamLoadException.class)
+    public void testHttpFailureIsNotSuccessfulWrite() throws Exception {
+        DorisOptions options = DorisOptionsTestUtils.tlsOptions("fe", 8030);
+        BackendUtils backendUtils = mock(BackendUtils.class);
+        when(backendUtils.getAvailableBackend()).thenReturn("be:8040");
+        RecordingHttpClient client = new RecordingHttpClient();
+        client.addResponse(503, "unavailable");
+        RecordBuffer buffer = new RecordBuffer();
+        buffer.insert("{\"id\":1}");
+        new DorisStreamLoad(backendUtils, options, "topic", "table", client).load("label", buffer);
+    }
+
+    @Test(expected = org.apache.doris.kafka.connector.exception.StreamLoadException.class)
+    public void testShareBatchRejectsFilteredRows() throws Exception {
+        DorisOptions options =
+                org.mockito.Mockito.spy(DorisOptionsTestUtils.tlsOptions("fe", 8030));
+        when(options.isShareGroupEnabled()).thenReturn(true);
+        options.setEnable2PC(false);
+        BackendUtils backendUtils = mock(BackendUtils.class);
+        when(backendUtils.getAvailableBackend()).thenReturn("be:8040");
+        RecordingHttpClient client = new RecordingHttpClient();
+        client.addResponse(
+                200,
+                "{\"TxnId\":1,\"Status\":\"Success\",\"Message\":\"OK\",\"NumberLoadedRows\":0,\"NumberFilteredRows\":1}");
+        RecordBuffer buffer = new RecordBuffer();
+        buffer.insert("{\"id\":1}");
+        new DorisStreamLoad(backendUtils, options, "topic", "table", client).load("label", buffer);
+    }
 }

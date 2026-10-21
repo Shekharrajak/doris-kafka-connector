@@ -104,6 +104,16 @@ public class DorisSinkTask extends SinkTask {
         LOG.info("Read {} records from Kafka", records.size());
         try {
             sink.insert(records);
+            if (options.isShareGroupEnabled()) {
+                Map<TopicPartition, OffsetAndMetadata> completed = new HashMap<>();
+                for (SinkRecord record : records) {
+                    completed.put(
+                            new TopicPartition(record.topic(), record.kafkaPartition()),
+                            new OffsetAndMetadata(record.kafkaOffset() + 1));
+                }
+                sink.commit(completed);
+                completed.keySet().forEach(sink::getOffset);
+            }
         } catch (Exception ex) {
             LOG.error("Error inserting records to Doris", ex);
             if (remainingRetries > 0) {

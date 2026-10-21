@@ -90,6 +90,27 @@ public class TestStreamLoadWriter {
     }
 
     @Test
+    public void shareModeRetainsLowerOffsetAfterHigherOffset() throws Exception {
+        Properties props = new Properties();
+        try (InputStream stream =
+                getClass()
+                        .getClassLoader()
+                        .getResourceAsStream("doris-connector-sink.properties")) {
+            props.load(stream);
+        }
+        DorisSinkConnectorConfig.setDefaultValues((Map) props);
+        props.put("task_id", "1");
+        props.put("doris.share.group.enabled", "true");
+        dorisOptions = new DorisOptions((Map) props);
+        StreamLoadWriter writer = mockStreamLoadWriter(new HashMap<>());
+        writer.processedOffset.set(101);
+        writer.insert(TestRecordBuffer.newSinkRecord("late-100", 100));
+        Assert.assertEquals(1, writer.getBuffer().getNumOfRecords());
+        Assert.assertFalse(dorisOptions.enable2PC());
+        writer.close();
+    }
+
+    @Test
     public void fetchOffset() {
         dorisWriter = mockStreamLoadWriter(new HashMap<>());
         dorisWriter.fetchOffset();

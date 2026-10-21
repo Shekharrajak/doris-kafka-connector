@@ -135,11 +135,17 @@ public class DorisStreamLoad extends DataLoad {
                                     respContent.getMessage(), respContent.getErrorURL());
                     throw new StreamLoadException(errMsg);
                 }
+                if (dorisOptions.isShareGroupEnabled()
+                        && respContent.getNumberLoadedRows() != buffer.getNumOfRecords()) {
+                    throw new StreamLoadException("Share batch was not fully loaded");
+                }
                 respContent.setDatabase(database);
                 respContent.setTable(table);
                 respContent.setLastOffset(buffer.getLastOffset());
                 respContent.setTopic(topic);
                 respContents.add(respContent);
+            } else {
+                throw new StreamLoadException("Stream load HTTP failure: " + statusCode);
             }
         } catch (Exception ex) {
             String err;

@@ -176,6 +176,9 @@ public class StreamLoadWriter extends DorisWriter {
         super.flush(buff);
         try {
             String label = labelGenerator.generateLabel(buff.getLastOffset());
+            if (dorisOptions.isShareGroupEnabled()) {
+                label += "_" + java.util.UUID.randomUUID();
+            }
             dorisStreamLoad.load(label, buff);
         } catch (IOException e) {
             LOG.warn(

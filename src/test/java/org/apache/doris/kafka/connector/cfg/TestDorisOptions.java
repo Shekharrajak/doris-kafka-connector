@@ -168,4 +168,11 @@ public class TestDorisOptions {
         Assert.assertEquals("arn:aws:iam::123456789012:role/doris", roleOptions.getRoleArn());
         Assert.assertEquals("external-id", roleOptions.getExternalId());
     }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testShareModeRejectsExactlyOnce() {
+        props.put("doris.share.group.enabled", "true");
+        props.put("delivery.guarantee", "exactly_once");
+        new DorisOptions((Map) props);
+    }
 }

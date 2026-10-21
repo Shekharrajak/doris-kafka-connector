@@ -81,6 +81,10 @@ public class RespContent {
     @JsonProperty(value = "ErrorURL")
     private String errorURL;
 
+    public long getNumberLoadedRows() {
+        return numberLoadedRows;
+    }
+
     public long getTxnId() {
         return txnId;
     }
