@@ -78,5 +78,39 @@ storage use an independent JVM-system trust context and do not inherit a private
 Plaintext Doris URLs are rejected when HTTP TLS is enabled. MySQL TLS requires the bundled
 Connector/J 8 driver and never falls back to the legacy driver.
 
+## Opt-in Kafka share worker
+
+The normal Kafka Connect worker owns its `KafkaConsumer`, calls `DorisSinkTask.put()`,
+and commits offsets through `preCommit()`. The Doris connector does not select that consumer.
+
+The standalone `DorisShareWorker` creates `KafkaShareConsumer` instances and reuses
+`DorisSinkTask`. Build it with Java 17 and the `kafka-share` profile (Kafka 4.2.0);
+the default build keeps Kafka 3.7.1. Use a broker with share groups enabled.
+
+```bash
+mvn -Pkafka-share -Dspotless.check.skip=true compile dependency:build-classpath -Dmdep.outputFile=share-classpath.txt
+java -cp "target/kafka-share/classes:$(cat share-classpath.txt)" \
+  org.apache.doris.kafka.connector.share.DorisShareWorker config/doris-share-worker.properties
+```
+
+The existing formatter requires Java 11; run `mvn spotless:check` with that JDK separately.
+
+Edit the example properties for your topic, destination and credentials before starting.
+`tasks.max` controls local reader threads; all use `consumer.group.id` and can share
+partitions. `consumer.*` properties pass through to Kafka, including TLS/SASL settings.
+Share-group starting position is configured at the broker/group, not through consumer offsets.
+
+The worker requires `doris.share.group.enabled=true` and non-null JSON object values.
+Each batch is loaded synchronously before individual records are ACCEPTed and their
+acknowledgements committed. Delivery is **at least once**: a crash, expired record lock
+or ACK failure after a successful Doris load can cause duplicate rows. Configure broker
+retention, delivery-attempt limits and lock duration for the workload.
+
+This is a standalone runtime, not a distributed Connect worker. It does not run Connect
+converters, SMTs, DLQs, schema evolution or offset seeking. Sink and ACK failures stop the
+process; restart with the same group ID for redelivery of unacknowledged records.
+Setting the flag on a stock Connect worker only changes sink behavior; it does not
+replace that worker's consumer. The share profile writes to `target/kafka-share`.
+
 ## Help
 For additional help, please [file an issue in the repository](https://github.com/apache/doris-kafka-connector/issues) or raise a question in [Apache Doris Public Slack](https://apachedoriscommunity.slack.com/).
