@@ -29,6 +29,7 @@ import org.apache.doris.kafka.connector.utils.Version;
 import org.apache.kafka.common.config.Config;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +65,21 @@ public class DorisSinkConnector extends SinkConnector {
 
     @Override
     public Class<? extends Task> taskClass() {
+        if (config != null && "share".equals(config.get("consumer.type"))) {
+            if (!Boolean.parseBoolean(config.get(DorisSinkConnectorConfig.SHARE_GROUP_ENABLED))) {
+                throw new ConnectException(
+                        "Native share consumption requires doris.share.group.enabled=true");
+            }
+            try {
+                return Class.forName(
+                                "org.apache.doris.kafka.connector.NativeDorisShareSinkTask",
+                                true,
+                                getClass().getClassLoader())
+                        .asSubclass(Task.class);
+            } catch (ClassNotFoundException e) {
+                throw new ConnectException("Build the connector with -Pnative-connect-share", e);
+            }
+        }
         return DorisSinkTask.class;
     }
 
