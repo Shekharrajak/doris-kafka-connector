@@ -78,6 +78,34 @@ storage use an independent JVM-system trust context and do not inherit a private
 Plaintext Doris URLs are rejected when HTTP TLS is enabled. MySQL TLS requires the bundled
 Connector/J 8 driver and never falls back to the legacy driver.
 
+## Native Kafka Connect share worker
+
+The experimental Kafka branch `feature/connect-share-group-sink` supports share
+consumption inside the Connect worker. Build its API locally first:
+
+```bash
+./gradlew :connect:api:publishToMavenLocal -PskipSigning=true
+```
+
+Then build this connector with Java 17:
+
+```bash
+mvn -Pnative-connect-share -Dspotless.check.skip=true -DskipTests package
+```
+
+Install the jar from `target/native-connect-share` into the custom Connect runtime's
+`plugin.path`. Configure the connector using `config/doris-native-share.properties`,
+including both `consumer.type=share` and `doris.share.group.enabled=true`.
+`DorisSinkConnector` selects `NativeDorisShareSinkTask`, a thin adapter around the
+existing synchronous sink. Kafka Connect owns consumption, converters, SMTs and ACKs;
+the standalone `DorisShareWorker` is not used in this path.
+
+This requires the custom Connect API/runtime; stock Connect does not support the
+new task contract. Keep `errors.tolerance=none`; DLQs and partition-offset operations
+are unsupported. Delivery is at least once, including possible duplicate effects
+between a successful Doris write and Kafka acknowledgement. The ordinary connector
+build and consumer path remain the default.
+
 ## Opt-in Kafka share worker
 
 The normal Kafka Connect worker owns its `KafkaConsumer`, calls `DorisSinkTask.put()`,
